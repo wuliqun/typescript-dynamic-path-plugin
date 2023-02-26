@@ -1,5 +1,6 @@
 module.exports = {
   root: true,
+  ignorePatterns: ["out/*"],
   rules: {
     // 缩进一致
     // indent: ["warn", 2],
