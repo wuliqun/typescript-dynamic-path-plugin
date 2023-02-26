@@ -20,7 +20,7 @@ project\
 +  ```ACT\2023\demo1```   
 + ```ACT\2023\demo2```   
 + ```COMMON\setting```       
-都可以看做独立的前端项目, 他们公用外部的构建配置和工具函数库等内容     
+都可以看做独立的前端项目, 他们共用外部的构建配置和工具函数库等内容     
 
 本插件解决的问题是       
 针对ACT\2023\demo1\pages\app.tsx中的 import { xx } from '@/api';     
