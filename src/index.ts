@@ -1,88 +1,100 @@
-interface RootConfig{
-  name:string,
-  depth:number
+interface RootConfig {
+  name: string;
+  depth: number;
 }
 
 /** 根据配置生成匹配正则 */
-function createFilter(roots:RootConfig[],folders:string[]){
-  const rootsStr = roots.map(r=>{
+function createFilter(roots: RootConfig[], folders: string[]) {
+  const rootsStr = roots.map((r) => {
     let res = r.name;
-    for(let i = 0;i<r.depth;i++){
-      res += '/[^/]+'
+    for (let i = 0; i < r.depth; i++) {
+      res += "/[^/]+";
     }
     return res;
-  })
+  });
   return {
-    fileFilter:new RegExp(`/(${rootsStr.join('|')})/`),
-    importFilter:new RegExp(`^@/(${folders.join('|')})\\b`)
-  }
+    fileFilter: new RegExp(`/(${rootsStr.join("|")})/`),
+    importFilter: new RegExp(`^@/(${folders.join("|")})\\b`),
+  };
 }
 
-const extensions = [".ts",".tsx",".js",".jsx"];
+const extensions = [".ts", ".tsx", ".js", ".jsx"];
 
-function init(modules: { typescript: typeof import("typescript/lib/tsserverlibrary") }) {
+function init(modules: {
+  typescript: typeof import("typescript/lib/tsserverlibrary");
+}) {
   const ts = modules.typescript;
 
-  function resolvedModule(moduleName:string,containingFile:string,fileFilter:RegExp):ts.ResolvedModule|undefined{
-    let res:ts.ResolvedModule|undefined = undefined;
+  /** 自解析模块缓存 */
+  const cache: Record<string, string> = {};
+  function resolvedModule(
+    moduleName: string,
+    containingFile: string,
+    fileFilter: RegExp
+  ): ts.ResolvedModule | undefined {
     const m = containingFile.match(fileFilter)!;
-    const module = containingFile.slice(0,m.index! + m[0].length) + moduleName.replace('@/','');
-    let filename = '';
-    if(/\.[^\\/.]+$/.test(module)){
-      if(ts.sys.fileExists(module)){
-        filename = module;
-      }
-    }else if(/\/$/.test(module)){
-      for(const ext of extensions){
-        if(ts.sys.fileExists(`${module}index${ext}`)){
-          filename = `${module}index${ext}`;
-          break;
+    const module =
+      containingFile.slice(0, m.index! + m[0].length) +
+      moduleName.replace("@/", "");
+    if (!cache[module]) {
+      let filename = "";
+      if (/\.[^\\/.]+$/.test(module)) {
+        if (ts.sys.fileExists(module)) {
+          filename = module;
         }
-      }
-    }else{
-      for(const ext of extensions){
-        if(ts.sys.fileExists(`${module}${ext}`)){
-          filename = `${module}${ext}`;
-          break;
-        }
-      }
-      if(!filename){
-        for(const ext of extensions){
-          if(ts.sys.fileExists(`${module}/index${ext}`)){
-            filename = `${module}/index${ext}`;
+      } else if (/\/$/.test(module)) {
+        for (const ext of extensions) {
+          if (ts.sys.fileExists(`${module}index${ext}`)) {
+            filename = `${module}index${ext}`;
             break;
           }
         }
+      } else {
+        for (const ext of extensions) {
+          if (ts.sys.fileExists(`${module}${ext}`)) {
+            filename = `${module}${ext}`;
+            break;
+          }
+        }
+        if (!filename) {
+          for (const ext of extensions) {
+            if (ts.sys.fileExists(`${module}/index${ext}`)) {
+              filename = `${module}/index${ext}`;
+              break;
+            }
+          }
+        }
+      }
+      if (filename) {
+        cache[module] = filename;
       }
     }
-    if(filename){
-      res = {resolvedFileName:filename};
-    }
-    return res;
+    return cache[module] ? { resolvedFileName: cache[module] } : undefined;
   }
 
   function create(info: ts.server.PluginCreateInfo) {
     /** 日志输出 */
-    function log(...args:any[]){
-      info.project.projectService.logger.info(args.map(arg=>String(arg)).join(" "));
+    function log(...args: any[]) {
+      info.project.projectService.logger.info(
+        args.map((arg) => String(arg)).join(" ")
+      );
     }
-    log('Typescript-dynamic-path-plugin started!');
+    log("Typescript-dynamic-path-plugin started!");
 
     // 根目录
     const roots = info.config.roots as RootConfig[];
     // 相对目录
-    const folders = info.config.folders as string[];    
+    const folders = info.config.folders as string[];
 
+    if (roots?.length && folders?.length) {
+      const { fileFilter, importFilter } = createFilter(roots, folders);
 
-    if (roots?.length && folders?.length){
-      const {fileFilter,importFilter} = createFilter(roots,folders);
-
-      if(info.languageServiceHost.resolveModuleNames) {
+      if (info.languageServiceHost.resolveModuleNames) {
         const _resolveModuleNames =
           info.languageServiceHost.resolveModuleNames.bind(
-            info.languageServiceHost,
+            info.languageServiceHost
           );
-  
+
         info.languageServiceHost.resolveModuleNames = (
           moduleNames,
           containingFile,
@@ -91,15 +103,24 @@ function init(modules: { typescript: typeof import("typescript/lib/tsserverlibra
           let resolvedModules = _resolveModuleNames(
             moduleNames,
             containingFile,
-            ...rest,
+            ...rest
           );
-          
-          resolvedModules = resolvedModules.map((m,index)=>{
-            if(!m && importFilter.test(moduleNames[index]) && fileFilter.test(containingFile) && !/\.vue$/.test(moduleNames[index])){
-              return resolvedModule(moduleNames[index],containingFile,fileFilter);
+
+          resolvedModules = resolvedModules.map((m, index) => {
+            if (
+              !m &&
+              importFilter.test(moduleNames[index]) &&
+              fileFilter.test(containingFile) &&
+              !/\.vue$/.test(moduleNames[index])
+            ) {
+              return resolvedModule(
+                moduleNames[index],
+                containingFile,
+                fileFilter
+              );
             }
             return m;
-          })
+          });
           return resolvedModules;
         };
       }
