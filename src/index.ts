@@ -38,11 +38,7 @@ function init(modules: {
       moduleName.replace("@/", "");
     if (!cache[module]) {
       let filename = "";
-      if (/\.[^\\/.]+$/.test(module)) {
-        if (ts.sys.fileExists(module)) {
-          filename = module;
-        }
-      } else if (/\/$/.test(module)) {
+      if (/\/$/.test(module)) {
         for (const ext of extensions) {
           if (ts.sys.fileExists(`${module}index${ext}`)) {
             filename = `${module}index${ext}`;
@@ -111,7 +107,7 @@ function init(modules: {
               !m &&
               importFilter.test(moduleNames[index]) &&
               fileFilter.test(containingFile) &&
-              !/\.vue$/.test(moduleNames[index])
+              !/\.[^\\/.]+$/.test(moduleNames[index])
             ) {
               return resolvedModule(
                 moduleNames[index],
