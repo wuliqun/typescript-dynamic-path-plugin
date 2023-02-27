@@ -33,7 +33,7 @@ project\
 使 '@/api' 指向 COMMON\setting\api\index.ts
 
 ## 配置
-示例
+示例, 在tsconfig->compilerOptions.plugins中配置
 ```
 {
   "name":"typescript-dynamic-path-plugin",
@@ -55,7 +55,10 @@ folders 独立项目下的文件夹, 只有在这里定义了的文件夹才可�
 
 
 ## TODO:
-发布npm
+1. 发布npm √
+2. ~~修改import代码提示~~ -- failed 似乎要通过vscode插件才能实现           
+3. 尝试使用vscode插件实现本插件功能, 并完成修改import提示的需求 √    (在vscode插件的package.json的contributes.typescriptServerPlugins中添加本插件, 但似乎不能传递配置参数)
+4. 若能完成3, 在vscode插件内能否让.vue文件也支持 ```@/``` 路径
 
 ## bugs
 在.vue文件中无效, 猜测是vscode插件volar使用了独立的Typescript Language Service.      

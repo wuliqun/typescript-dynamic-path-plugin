@@ -76,11 +76,29 @@ function init(modules: {
       );
     }
     log("Typescript-dynamic-path-plugin started!");
-
     // 根目录
-    const roots = info.config.roots as RootConfig[];
+    const roots: RootConfig[] = info.config.roots || [
+      {
+        name: "ACT",
+        depth: 2,
+      },
+      {
+        name: "COMMON",
+        depth: 1,
+      },
+    ];
     // 相对目录
-    const folders = info.config.folders as string[];
+    const folders: string[] = info.config.folders || [
+      "api",
+      "components",
+      "pages",
+      "store",
+      "img",
+      "js",
+      "style",
+      "scripts",
+    ];
+
 
     if (roots?.length && folders?.length) {
       const { fileFilter, importFilter } = createFilter(roots, folders);
