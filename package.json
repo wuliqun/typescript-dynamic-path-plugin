@@ -1,9 +1,12 @@
 {
   "name": "typescript-dynamic-path-plugin",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "license": "MIT",
   "main": "./out",
   "dependencies": {
+    "@volar/typescript-faster": "^1.0.24",
+    "@volar/vue-language-core": "1.2.0-patch.2",
+    "@volar/vue-typescript": "^1.2.0",
     "path": "^0.12.7",
     "typescript": "^4.4.3"
   },
