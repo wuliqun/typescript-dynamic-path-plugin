@@ -30,8 +30,8 @@ const init: ts.server.PluginModuleFactory = (modules) => {
   const externalFiles = new Map<ts.server.Project, string[]>();
 
   /** 自解析模块缓存 */
-  const cache: Record<string, string> = {};
-  function resolvedModule(
+  const cache: Record<string, ts.ResolvedModule & {extension?:string}> = {};
+  function resolvedCustomRelativeModule(
     moduleName: string,
     containingFile: string,
     fileFilter: RegExp
@@ -41,35 +41,56 @@ const init: ts.server.PluginModuleFactory = (modules) => {
       containingFile.slice(0, m.index! + m[0].length) +
       moduleName.replace("@/", "");
     if (!cache[module]) {
-      let filename = "";
-      if (/\/$/.test(module)) {
+      if(/\.vue$/.test(module)){
+        if(ts.sys.fileExists(module)){
+          cache[module] = {
+            resolvedFileName:module,
+            isExternalLibraryImport:false,
+            extension:'.d.ts'
+          }
+        }
+      }else if (/\/$/.test(module)) {
         for (const ext of extensions) {
           if (ts.sys.fileExists(`${module}index${ext}`)) {
-            filename = `${module}index${ext}`;
+            cache[module] = {
+              resolvedFileName:`${module}index${ext}`,
+              isExternalLibraryImport:false,
+              extension:/\.ts/.test(ext) ? ext : undefined
+            }
             break;
           }
         }
       } else {
         for (const ext of extensions) {
           if (ts.sys.fileExists(`${module}${ext}`)) {
-            filename = `${module}${ext}`;
+            cache[module] = {
+              resolvedFileName:`${module}${ext}`,
+              isExternalLibraryImport:false,
+              extension:/\.ts/.test(ext) ? ext : undefined
+            }
             break;
           }
         }
-        if (!filename) {
+        if (!cache[module]) {
           for (const ext of extensions) {
             if (ts.sys.fileExists(`${module}/index${ext}`)) {
-              filename = `${module}/index${ext}`;
+              cache[module] = {
+                resolvedFileName:`${module}/index${ext}`,
+                isExternalLibraryImport:false,
+                extension:/\.ts/.test(ext) ? ext : undefined
+              }
               break;
             }
           }
         }
       }
-      if (filename) {
-        cache[module] = filename;
-      }
     }
-    return cache[module] ? { resolvedFileName: cache[module] } : undefined;
+    return cache[module] || undefined;
+  }
+
+  /** 解析.vue文件路径 */
+  function resolveVueFile(name:string,containingFile:string){
+    return     undefined;
   }
 
   const pluginModule: ts.server.PluginModule = {
@@ -112,50 +133,6 @@ const init: ts.server.PluginModuleFactory = (modules) => {
         "scripts",
       ];
 
-      log(2222222222, JSON.stringify(roots), JSON.stringify(folders));
-
-      if (roots?.length && folders?.length) {
-        const { fileFilter, importFilter } = createFilter(roots, folders);
-
-        log(333333, info.languageServiceHost.resolveModuleNames);
-        if (info.languageServiceHost.resolveModuleNames) {
-          log(123456, "hijacked info.languageServiceHost resolveModuleNames");
-          const _resolveModuleNames =
-            info.languageServiceHost.resolveModuleNames.bind(
-              info.languageServiceHost
-            );
-
-          info.languageServiceHost.resolveModuleNames = (
-            moduleNames,
-            containingFile,
-            ...rest
-          ) => {
-            let resolvedModules = _resolveModuleNames(
-              moduleNames,
-              containingFile,
-              ...rest
-            );
-
-            resolvedModules = resolvedModules.map((m, index) => {
-              if (
-                !m &&
-                importFilter.test(moduleNames[index]) &&
-                fileFilter.test(containingFile) &&
-                !/\.[^\\/.]+$/.test(moduleNames[index])
-              ) {
-                return resolvedModule(
-                  moduleNames[index],
-                  containingFile,
-                  fileFilter
-                );
-              }
-              return m;
-            });
-            return resolvedModules;
-          };
-        }
-      }
-
       const extraFileExtensions: ts.FileExtensionInfo[] = [
         {
           extension: "vue",
@@ -191,25 +168,69 @@ const init: ts.server.PluginModuleFactory = (modules) => {
       }
 
       const vueTsLsHost: vue.VueLanguageServiceHost = {
-        getNewLine: () => info.project.getNewLine(),
-        useCaseSensitiveFileNames: () =>
-          info.project.useCaseSensitiveFileNames(),
-        readFile: (path) => info.project.readFile(path),
-        writeFile: (path, content) => info.project.writeFile(path, content),
-        fileExists: (path) => info.project.fileExists(path),
-        directoryExists: (path) => info.project.directoryExists(path),
-        getDirectories: (path) => info.project.getDirectories(path),
+        getNewLine: () => {
+          log(147147,`getNewLine`,info.project.getNewLine());
+          return info.project.getNewLine()
+        },
+        useCaseSensitiveFileNames: () =>{
+          log(147147,`useCaseSensitiveFileNames`,info.project.useCaseSensitiveFileNames());
+          return info.project.useCaseSensitiveFileNames()
+        },
+        readFile: (path) => {
+          log(147147,`readFile`,path,info.project.readFile(path));
+          return info.project.readFile(path);
+        },
+        writeFile: (path, content) => {
+          log(147147,`writeFile`,path,content);
+          return info.project.writeFile(path, content)
+        },
+        fileExists: (path) => {
+          log(147147,`fileExists`,path,info.project.fileExists(path));
+          return info.project.fileExists(path)
+        },
+        directoryExists: (path) => {
+          log(147147,`directoryExists`,path,info.project.directoryExists(path));
+          return info.project.directoryExists(path)
+        },
+        getDirectories: (path) => {
+          log(147147,`getDirectories`,path,info.project.getDirectories(path));
+          return info.project.getDirectories(path)
+        },
         readDirectory: (path, extensions, exclude, include, depth) =>
-          info.project.readDirectory(path, extensions, exclude, include, depth),
+          {
+            log(147147,`readDirectory`,path, extensions, exclude, include, depth,info.project.readDirectory(path, extensions, exclude, include, depth));
+            return info.project.readDirectory(path, extensions, exclude, include, depth)
+          },
         realpath: info.project.realpath
-          ? (path) => info.project.realpath!(path)
+          ? (path) => {
+            log(147147,`realpath`,path,info.project.realpath!(path));
+            return info.project.realpath!(path)
+          }
           : undefined,
-        getCompilationSettings: () => info.project.getCompilationSettings(),
-        getVueCompilationSettings: () => parsed.vueOptions,
-        getCurrentDirectory: () => info.project.getCurrentDirectory(),
-        getDefaultLibFileName: () => info.project.getDefaultLibFileName(),
-        getProjectVersion: () => info.project.getProjectVersion(),
-        getProjectReferences: () => info.project.getProjectReferences(),
+        getCompilationSettings: () => {
+          log(147147,`getCompilationSettings`,info.project.getCompilationSettings());
+          return info.project.getCompilationSettings()
+        },
+        getVueCompilationSettings: () => {
+          log(147147,`getVueCompilationSettings`,parsed.vueOptions);
+          return parsed.vueOptions
+        },
+        getCurrentDirectory: () => {
+          log(147147,`getCurrentDirectory`,info.project.getCurrentDirectory());
+          return info.project.getCurrentDirectory()
+        },
+        getDefaultLibFileName: () => {
+          log(147147,`getDefaultLibFileName`,info.project.getDefaultLibFileName());
+          return info.project.getDefaultLibFileName()
+        },
+        getProjectVersion: () => {
+          log(147147,`getProjectVersion`,info.project.getProjectVersion());
+          return info.project.getProjectVersion()
+        },
+        getProjectReferences: () => {
+          log(147147,`getProjectReferences`,info.project.getProjectReferences());
+          return info.project.getProjectReferences();
+        },
         getScriptFileNames: () => [
           ...info.project.getScriptFileNames(),
           ...vueFileNames,
@@ -218,61 +239,43 @@ const init: ts.server.PluginModuleFactory = (modules) => {
         getScriptSnapshot: (fileName) =>
           info.project.getScriptSnapshot(fileName),
         getTypeScriptModule: () => ts,
-      };
-      for (const key in vueTsLsHost) {
-        if (typeof (vueTsLsHost as any)[key] === "function") {
-          (vueTsLsHost as any)[key] = new Proxy((vueTsLsHost as any)[key], {
-            apply: function (target, thisArg, argumentsList) {
-              const res = target.apply(null, argumentsList);
-              log(
-                147147,
-                key,
-                JSON.stringify(argumentsList),
-                JSON.stringify(res)
-              );
+        resolveModuleNames:info.languageServiceHost.resolveModuleNames ? (moduleNames, containingFile, reusedNames, redirectedReference, options, containingSourceFile)=> {
+          let resolvedModules = info.languageServiceHost.resolveModuleNames!(moduleNames, containingFile, reusedNames, redirectedReference, options, containingSourceFile);
 
-              return res;
-            },
+          const { fileFilter, importFilter } = createFilter(roots, folders);
+
+          log(951951,'resolvedModules',JSON.stringify(moduleNames),JSON.stringify(resolvedModules));
+          resolvedModules = resolvedModules.map((m, index) => {
+            if (
+              !m &&
+              importFilter.test(moduleNames[index]) &&
+              fileFilter.test(containingFile) &&
+              (/\.vue$/.test(moduleNames[index]) || !/\.[^\\/.]+$/.test(moduleNames[index]))
+            ) {
+              log(888888,moduleNames[index])
+              return resolvedCustomRelativeModule(
+                moduleNames[index],
+                containingFile,
+                fileFilter
+              );
+            }
+
+            if(!m && /\.vue$/.test(moduleNames[index])){
+              log(888877,moduleNames[index])
+              log(555555,moduleNames[index],containingFile)
+              return resolveVueFile(moduleNames[index],containingFile);
+            }
+
+            return m;
           });
-        }
-      }
+          log(922222,'resolvedModules',JSON.stringify(resolvedModules));
+          return resolvedModules;
+        }:undefined
+      };
       const vueTsLs = vueTs.createLanguageService(vueTsLsHost);
 
       tsFaster.decorate(ts, vueTsLsHost, vueTsLs);
 
-      // for (const key of [
-      //   "getSemanticDiagnostics",
-      //   "getEncodedSemanticClassifications",
-      //   "getCompletionsAtPosition",
-      //   "getCompletionEntryDetails",
-      //   "getCompletionEntrySymbol",
-      //   "getQuickInfoAtPosition",
-      //   "getSignatureHelpItems",
-      //   "getRenameInfo",
-      //   "findRenameLocations",
-      //   "getDefinitionAtPosition",
-      //   "getDefinitionAndBoundSpan",
-      //   "getTypeDefinitionAtPosition",
-      //   "getImplementationAtPosition",
-      //   "getReferencesAtPosition",
-      //   "findReferences",
-      // ]) {
-      //   if (typeof (vueTsLs as any)[key] === "function") {
-      //     (vueTsLs as any)[key] = new Proxy((vueTsLs as any)[key], {
-      //       apply: function (target, thisArg, argumentsList) {
-      //         const res = target.apply(vueTsLs, argumentsList);
-      //         log(
-      //           258258,
-      //           key,
-      //           JSON.stringify(argumentsList),
-      //           JSON.stringify(res)
-      //         );
-
-      //         return res;
-      //       },
-      //     });
-      //   }
-      // }
 
       return new Proxy(info.languageService, {
         get: (target: any, property: keyof ts.LanguageService) => {
