@@ -124,51 +124,6 @@ function resolveVueFile(
       isExternalLibraryImport: false,
       resolvedFileName: path.resolve(path.dirname(containingFile), name),
     };
-  } else {
-    const failedModule =
-      info.project.getResolvedModuleWithFailedLookupLocationsFromCache(
-        name,
-        containingFile
-      );
-    const baseUrl = info.project.getCompilerOptions().baseUrl;
-    const match = "/index.ts";
-
-    // An array of paths TypeScript searched for the module. All include .ts, .tsx, .d.ts, or .json extensions.
-    // NOTE: TypeScript doesn't expose this in their interfaces, which is why the type is unkown.
-    // https://github.com/microsoft/TypeScript/issues/28770
-    const failedLocations: readonly string[] = (
-      failedModule as unknown as {
-        failedLookupLocations: readonly string[];
-      }
-    ).failedLookupLocations;
-
-    // Filter to only one extension type, and remove that extension. This leaves us with the actual filename.
-    // Example: "usr/person/project/src/dir/File.module.css/index.d.ts" > "usr/person/project/src/dir/File.module.css"
-    const normalizedLocations = failedLocations.reduce<string[]>(
-      (locations, location) => {
-        if (
-          (baseUrl ? location.includes(baseUrl) : true) &&
-          location.endsWith(match)
-        ) {
-          return [...locations, location.replace(match, "")];
-        }
-        return locations;
-      },
-      []
-    );
-
-    // Find the imported CSS module, if it exists.
-    const cssModulePath = normalizedLocations.find((location) =>
-      fs.existsSync(location)
-    );
-
-    if (cssModulePath) {
-      return {
-        extension: ".d.ts",
-        isExternalLibraryImport: false,
-        resolvedFileName: path.resolve(cssModulePath),
-      };
-    }
   }
   return undefined;
 }
