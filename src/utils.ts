@@ -2,7 +2,7 @@ import type * as typescript from "typescript/lib/tsserverlibrary";
 import * as tts from "typescript";
 import path from "path";
 import fs from "fs";
-import { parse, compileScript } from "@vue/compiler-sfc";
+import { parse, compileScript, SFCScriptBlock } from "@vue/compiler-sfc";
 
 interface RootConfig {
   name: string;
@@ -157,22 +157,36 @@ function getVueSourceFile(
     }
   );
 
-  const compiledScript = compileScript(descriptor, {
-    id: filename,
-    sourceMap: Boolean(
-      descriptor.script?.attrs?.sourceMap ||
-        descriptor.scriptSetup?.attrs?.sourceMap
-    ),
-  });
+  let compiledScript: SFCScriptBlock | null = null;
+
+  try {
+    compiledScript = compileScript(descriptor, {
+      id: filename,
+      sourceMap: Boolean(
+        descriptor.script?.attrs?.sourceMap ||
+          descriptor.scriptSetup?.attrs?.sourceMap
+      ),
+    });
+  } catch (e) {}
+
+  const defaultContent = `
+    import { defineComponent as _defineComponent } from 'vue'
+    export default /*#__PURE__*/_defineComponent({
+      name:'${filename.substring(
+        filename.lastIndexOf("/") + 1,
+        filename.lastIndexOf(".")
+      )}'
+    });
+  `;
 
   // const scriptSnapshot = tts.ScriptSnapshot.fromString(descriptor.script.content);
   const sourceFile = tts.createSourceFile(
     filename,
-    compiledScript.content || "",
+    compiledScript?.content || defaultContent,
     tts.ScriptTarget.ESNext,
     true
   );
-  log(777777, JSON.stringify(descriptor));
+
   sourceFile.isDeclarationFile = true;
   return sourceFile;
 }

@@ -92,6 +92,14 @@ const init: ts.server.PluginModuleFactory = (modules) => {
             JSON.stringify(resolvedModules)
           );
           resolvedModules = resolvedModules.map((m, index) => {
+            // 屏蔽掉vue/types/jsx.d.ts 避免冲突react
+            if (
+              m &&
+              /vue(\/|\\)types(\/|\\)jsx\.d\.ts$/.test(m.resolvedFileName)
+            ) {
+              return undefined;
+            }
+
             if (
               !m &&
               importFilter.test(moduleNames[index]) &&
@@ -109,10 +117,6 @@ const init: ts.server.PluginModuleFactory = (modules) => {
 
             if (!m && /\.vue$/.test(moduleNames[index])) {
               return resolveVueFile(moduleNames[index], containingFile, info);
-            }
-
-            if (m && /vue\/types\/jsx\.d\.ts/.test(m.resolvedFileName)) {
-              return undefined;
             }
 
             return m;
