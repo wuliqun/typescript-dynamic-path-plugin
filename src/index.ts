@@ -111,6 +111,10 @@ const init: ts.server.PluginModuleFactory = (modules) => {
               return resolveVueFile(moduleNames[index], containingFile, info);
             }
 
+            if (m && /vue\/types\/jsx\.d\.ts/.test(m.resolvedFileName)) {
+              return undefined;
+            }
+
             return m;
           });
           log(222222, "resolvedModules after", JSON.stringify(resolvedModules));
